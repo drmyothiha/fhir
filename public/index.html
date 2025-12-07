@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHR to FHIR Appointment Booking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .form-container {
+            padding: 30px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f9fafb;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .patient-info {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border-left: 4px solid #0ea5e9;
+        }
+
+        .doctor-info {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .appointment-info {
+            background: #ecfdf5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border-left: 4px solid #10b981;
+        }
+
+        .medical-info {
+            background: #fdf2f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border-left: 4px solid #db2777;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            margin: 30px auto 0;
+            width: 200px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .result-container {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+
+        .error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .result-container h3 {
+            margin-bottom: 10px;
+            color: #065f46;
+        }
+
+        .error h3 {
+            color: #991b1b;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 EHR to FHIR Appointment Booking</h1>
+            <p>Convert your EHR data to FHIR standard and book appointments</p>
+        </div>
+
+        <div class="form-container">
+            <form id="appointmentForm">
+                <div class="patient-info">
+                    <h3>👤 Patient Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientId">Patient ID *</label>
+                            <input type="text" id="patientId" name="patientId" required placeholder="e.g., P001">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientName">Patient Name *</label>
+                            <input type="text" id="patientName" name="patientName" required placeholder="e.g., မောင်သူရိန်လင်း">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="doctor-info">
+                    <h3>👨‍⚕️ Doctor Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="doctorId">Doctor ID *</label>
+                            <input type="text" id="doctorId" name="doctorId" required placeholder="e.g., DOC001">
+                        </div>
+                        <div class="form-group">
+                            <label for="doctorName">Doctor Name *</label>
+                            <input type="text" id="doctorName" name="doctorName" required placeholder="e.g., Dr. Aung Ko Win">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="appointment-info">
+                    <h3>📅 Appointment Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDateTime">Start Date & Time *</label>
+                            <input type="datetime-local" id="startDateTime" name="startDateTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDateTime">End Date & Time *</label>
+                            <input type="datetime-local" id="endDateTime" name="endDateTime" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="duration">Duration (minutes)</label>
+                            <input type="number" id="duration" name="duration" placeholder="e.g., 45" min="15" max="240">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status *</label>
+                            <select id="status" name="status" required>
+                                <option value="scheduled">Scheduled</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="arrived">Arrived</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="medical-info">
+                    <h3>🏥 Medical Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="diagnosis">Diagnosis</label>
+                            <input type="text" id="diagnosis" name="diagnosis" placeholder="e.g., Acute Appendicitis">
+                        </div>
+                        <div class="form-group">
+                            <label for="priority">Priority</label>
+                            <select id="priority" name="priority">
+                                <option value="0">Routine (0)</option>
+                                <option value="1">Urgent (1)</option>
+                                <option value="2">ASAP (2)</option>
+                                <option value="3">STAT (3)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Clinical Notes</label>
+                        <textarea id="notes" name="notes" placeholder="Enter clinical notes, symptoms, observations..."></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">📤 Book Appointment</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Converting EHR to FHIR and booking appointment...</p>
+            </div>
+
+            <div class="result-container success" id="successResult">
+                <h3>✅ Appointment Booked Successfully!</h3>
+                <p id="successMessage"></p>
+                <h4>FHIR Resource:</h4>
+                <pre id="fhirOutput"></pre>
+            </div>
+
+            <div class="result-container error" id="errorResult">
+                <h3>❌ Booking Failed</h3>
+                <p id="errorMessage"></p>
+                <pre id="errorDetails"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set default datetime to now and 30 minutes later
+        const now = new Date();
+        const start = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+        const end = new Date(start.getTime() + 45 * 60 * 1000); // 45 minutes later
+
+        document.getElementById('startDateTime').value = formatDateTime(start);
+        document.getElementById('endDateTime').value = formatDateTime(end);
+
+        function formatDateTime(date) {
+            return date.toISOString().slice(0, 16);
+        }
+
+        // Calculate duration when start/end times change
+        document.getElementById('startDateTime').addEventListener('change', calculateDuration);
+        document.getElementById('endDateTime').addEventListener('change', calculateDuration);
+
+        function calculateDuration() {
+            const start = new Date(document.getElementById('startDateTime').value);
+            const end = new Date(document.getElementById('endDateTime').value);
+            
+            if (start && end && end > start) {
+                const duration = Math.round((end - start) / (1000 * 60));
+                document.getElementById('duration').value = duration;
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading, hide results
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('successResult').style.display = 'none';
+            document.getElementById('errorResult').style.display = 'none';
+
+            // Collect form data
+            const formData = {
+                patientId: document.getElementById('patientId').value,
+                patientName: document.getElementById('patientName').value,
+                doctorId: document.getElementById('doctorId').value,
+                doctorName: document.getElementById('doctorName').value,
+                startDateTime: document.getElementById('startDateTime').value,
+                endDateTime: document.getElementById('endDateTime').value,
+                duration: document.getElementById('duration').value,
+                status: document.getElementById('status').value,
+                diagnosis: document.getElementById('diagnosis').value,
+                priority: document.getElementById('priority').value,
+                notes: document.getElementById('notes').value
+            };
+
+            try {
+                // Send to server
+                const response = await fetch('/book-appointment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+
+                if (result.success) {
+                    // Show success
+                    document.getElementById('successMessage').textContent = 
+                        `Appointment ID: ${result.appointmentId}`;
+                    document.getElementById('fhirOutput').textContent = 
+                        JSON.stringify(result.fhirResource, null, 2);
+                    document.getElementById('successResult').style.display = 'block';
+                    
+                    // Scroll to result
+                    document.getElementById('successResult').scrollIntoView({ behavior: 'smooth' });
+                    
+                    // Reset form after 3 seconds
+                    setTimeout(() => {
+                        document.getElementById('appointmentForm').reset();
+                        document.getElementById('startDateTime').value = formatDateTime(new Date(now.getTime() + 60 * 60 * 1000));
+                        document.getElementById('endDateTime').value = formatDateTime(new Date(new Date().getTime() + 105 * 60 * 1000));
+                    }, 3000);
+                } else {
+                    // Show error
+                    document.getElementById('errorMessage').textContent = result.error || 'Booking failed';
+                    document.getElementById('errorDetails').textContent = 
+                        JSON.stringify(result.details || result.message, null, 2);
+                    document.getElementById('errorResult').style.display = 'block';
+                    
+                    // Scroll to error
+                    document.getElementById('errorResult').scrollIntoView({ behavior: 'smooth' });
+                }
+
+            } catch (error) {
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Show error
+                document.getElementById('errorMessage').textContent = 'Network error or server unreachable';
+                document.getElementById('errorDetails').textContent = error.message;
+                document.getElementById('errorResult').style.display = 'block';
+                
+                // Scroll to error
+                document.getElementById('errorResult').scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        // Pre-fill form with sample data for testing
+        function fillSampleData() {
+            const sampleData = {
+                patientId: 'P001',
+                patientName: 'မောင်သူရိန်လင်း',
+                doctorId: 'DOC001',
+                doctorName: 'Dr. Aung Ko Win',
+                startDateTime: formatDateTime(new Date(now.getTime() + 24 * 60 * 60 * 1000)), // Tomorrow
+                endDateTime: formatDateTime(new Date(now.getTime() + 24 * 60 * 60 * 1000 + 45 * 60 * 1000)),
+                duration: '45',
+                status: 'scheduled',
+                diagnosis: 'Acute Appendicitis',
+                priority: '2',
+                notes: 'RLQ pain, fever, nausea. Suspected acute appendicitis.'
+            };
+
+            Object.keys(sampleData).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) element.value = sampleData[key];
+            });
+        }
+
+        // Add sample data button (optional)
+        const sampleBtn = document.createElement('button');
+        sampleBtn.type = 'button';
+        sampleBtn.textContent = 'Fill Sample Data';
+        sampleBtn.style.cssText = `
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        `;
+        sampleBtn.onclick = fillSampleData;
+        document.querySelector('.header').appendChild(sampleBtn);
+    </script>
+</body>
+</html>
