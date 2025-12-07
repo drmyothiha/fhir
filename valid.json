@@ -1,0 +1,47 @@
+{
+  "patientId": "P002",
+  "patientName": "မောင်သူရိန်လင်း",
+  "doctorId": "DOC001",
+  "doctorName": "Dr. Aung Ko Win",
+  "startDateTime": "2025-12-08T03:08",
+  "endDateTime": "2025-12-08T03:53",
+  "duration": "45",
+  "status": "scheduled",
+  "diagnosis": "Acute Appendicitis",
+  "priority": "2",
+  "notes": "RLQ pain, fever, nausea. Suspected acute appendicitis.",
+  "procedureCode": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "80146002",
+          "display": "Appendectomy"
+        },
+        {
+          "system": "http://www.ama-assn.org/go/cpt",
+          "code": "44950",
+          "display": "Appendectomy"
+        }
+      ],
+      "text": "Surgical removal of appendix (appendectomy)"
+    }
+  ],
+  "reasonCode": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "74400008",
+          "display": "Appendicitis"
+        },
+        {
+          "system": "http://hl7.org/fhir/sid/icd-10",
+          "code": "K35.80",
+          "display": "Acute appendicitis, unspecified"
+        }
+      ],
+      "text": "Acute appendicitis requiring surgical consultation"
+    }
+  ]
+}

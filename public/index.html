@@ -59,6 +59,7 @@
 
         .form-group {
             flex: 1;
+            position: relative;
         }
 
         label {
@@ -203,19 +204,137 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Autocomplete Styles */
+        .autocomplete-container {
+            position: relative;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #4f46e5;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item .code {
+            font-weight: bold;
+            color: #4f46e5;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .autocomplete-item .title {
+            color: #374151;
+        }
+
+        .autocomplete-item .highlight {
+            background-color: #fef3c7;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 42px;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+
+        .search-icon:hover {
+            color: #4f46e5;
+        }
+
+        .clear-icon {
+            position: absolute;
+            right: 40px;
+            top: 42px;
+            color: #9ca3af;
+            cursor: pointer;
+            display: none;
+        }
+
+        .clear-icon:hover {
+            color: #ef4444;
+        }
+
+        .autocomplete-status {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+            padding: 0 15px;
+        }
+
+        .sample-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .sample-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏥 EHR to FHIR Appointment Booking</h1>
-            <p>Convert your EHR data to FHIR standard and book appointments</p>
+            <h1><i class="fas fa-hospital"></i> EHR to FHIR Appointment Booking</h1>
+            <p>Convert your EHR data to FHIR standard with ICHI Procedure Code autocomplete</p>
+            <div class="header-buttons">
+                <button class="sample-btn" onclick="fillSampleData()">
+                    <i class="fas fa-flask"></i> Fill Sample Data
+                </button>
+                <button class="sample-btn" onclick="clearAllFields()">
+                    <i class="fas fa-broom"></i> Clear All
+                </button>
+            </div>
         </div>
 
         <div class="form-container">
             <form id="appointmentForm">
                 <div class="patient-info">
-                    <h3>👤 Patient Information</h3>
+                    <h3><i class="fas fa-user"></i> Patient Information</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="patientId">Patient ID *</label>
@@ -229,7 +348,7 @@
                 </div>
 
                 <div class="doctor-info">
-                    <h3>👨‍⚕️ Doctor Information</h3>
+                    <h3><i class="fas fa-user-md"></i> Doctor Information</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="doctorId">Doctor ID *</label>
@@ -243,7 +362,7 @@
                 </div>
 
                 <div class="appointment-info">
-                    <h3>📅 Appointment Details</h3>
+                    <h3><i class="fas fa-calendar-alt"></i> Appointment Details</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="startDateTime">Start Date & Time *</label>
@@ -273,11 +392,22 @@
                 </div>
 
                 <div class="medical-info">
-                    <h3>🏥 Medical Information</h3>
+                    <h3><i class="fas fa-stethoscope"></i> Medical Information</h3>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="diagnosis">Diagnosis</label>
-                            <input type="text" id="diagnosis" name="diagnosis" placeholder="e.g., Acute Appendicitis">
+                        <div class="form-group autocomplete-container">
+                            <label for="diagnosis">Procedure / Diagnosis</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" 
+                                       id="diagnosis" 
+                                       name="diagnosis" 
+                                       placeholder="Start typing procedure name (e.g., Appendectomy)..."
+                                       autocomplete="off">
+                                <i class="fas fa-times clear-icon" id="clearDiagnosis"></i>
+                                <i class="fas fa-search search-icon" id="searchDiagnosis"></i>
+                            </div>
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+                            <div class="autocomplete-status" id="autocompleteStatus"></div>
+                            <input type="hidden" id="procedureCode" name="procedureCode">
                         </div>
                         <div class="form-group">
                             <label for="priority">Priority</label>
@@ -295,7 +425,9 @@
                     </div>
                 </div>
 
-                <button type="submit" class="submit-btn">📤 Book Appointment</button>
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-paper-plane"></i> Book Appointment
+                </button>
             </form>
 
             <div class="loading" id="loading">
@@ -304,14 +436,14 @@
             </div>
 
             <div class="result-container success" id="successResult">
-                <h3>✅ Appointment Booked Successfully!</h3>
+                <h3><i class="fas fa-check-circle"></i> Appointment Booked Successfully!</h3>
                 <p id="successMessage"></p>
                 <h4>FHIR Resource:</h4>
                 <pre id="fhirOutput"></pre>
             </div>
 
             <div class="result-container error" id="errorResult">
-                <h3>❌ Booking Failed</h3>
+                <h3><i class="fas fa-exclamation-circle"></i> Booking Failed</h3>
                 <p id="errorMessage"></p>
                 <pre id="errorDetails"></pre>
             </div>
@@ -345,6 +477,216 @@
             }
         }
 
+        // Autocomplete functionality for diagnosis/procedure
+        let autocompleteTimeout;
+        let selectedProcedure = null;
+
+        const diagnosisInput = document.getElementById('diagnosis');
+        const procedureCodeInput = document.getElementById('procedureCode');
+        const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+        const autocompleteStatus = document.getElementById('autocompleteStatus');
+        const clearDiagnosisBtn = document.getElementById('clearDiagnosis');
+        const searchDiagnosisBtn = document.getElementById('searchDiagnosis');
+
+        // Search ICHI procedures
+        async function searchProcedures(query) {
+            if (!query || query.length < 2) {
+                hideAutocomplete();
+                return [];
+            }
+
+            try {
+                autocompleteStatus.textContent = 'Searching...';
+                autocompleteStatus.style.color = '#6b7280';
+                
+                const response = await fetch(`/ichi/search?q=${encodeURIComponent(query)}&limit=10`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.results || [];
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                autocompleteStatus.textContent = 'Search failed. Please try again.';
+                autocompleteStatus.style.color = '#ef4444';
+                return [];
+            }
+        }
+
+        // Display autocomplete results
+        function displayAutocomplete(results, query) {
+            autocompleteDropdown.innerHTML = '';
+            
+            if (results.length === 0) {
+                autocompleteStatus.textContent = `No procedures found for "${query}"`;
+                autocompleteStatus.style.color = '#ef4444';
+                hideAutocomplete();
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.dataset.index = index;
+                
+                // Highlight matching text
+                let title = item.Title;
+                if (query) {
+                    const regex = new RegExp(`(${query})`, 'gi');
+                    title = title.replace(regex, '<span class="highlight">$1</span>');
+                }
+                
+                div.innerHTML = `
+                    <span class="code">${item.Code}</span>
+                    <span class="title">${title}</span>
+                `;
+                
+                div.addEventListener('click', () => {
+                    selectProcedure(item);
+                });
+                
+                autocompleteDropdown.appendChild(div);
+            });
+
+            autocompleteStatus.textContent = `Found ${results.length} procedure(s). Use arrow keys to navigate, Enter to select.`;
+            autocompleteStatus.style.color = '#10b981';
+            autocompleteDropdown.style.display = 'block';
+        }
+
+        // Select a procedure
+        function selectProcedure(procedure) {
+            selectedProcedure = procedure;
+            diagnosisInput.value = procedure.Title;
+            procedureCodeInput.value = procedure.Code;
+            
+            // Add visual feedback
+            diagnosisInput.style.borderColor = '#10b981';
+            diagnosisInput.style.background = '#f0fdf4';
+            
+            hideAutocomplete();
+            
+            autocompleteStatus.textContent = `Selected: ${procedure.Code} - ${procedure.Title}`;
+            autocompleteStatus.style.color = '#10b981';
+            
+            clearDiagnosisBtn.style.display = 'block';
+        }
+
+        // Hide autocomplete dropdown
+        function hideAutocomplete() {
+            autocompleteDropdown.style.display = 'none';
+        }
+
+        // Clear selected procedure
+        function clearProcedure() {
+            selectedProcedure = null;
+            diagnosisInput.value = '';
+            procedureCodeInput.value = '';
+            diagnosisInput.style.borderColor = '#e5e7eb';
+            diagnosisInput.style.background = '#f9fafb';
+            clearDiagnosisBtn.style.display = 'none';
+            autocompleteStatus.textContent = '';
+            hideAutocomplete();
+        }
+
+        // Handle diagnosis input with debounce
+        diagnosisInput.addEventListener('input', () => {
+            clearTimeout(autocompleteTimeout);
+            
+            // Clear hidden code field if user starts typing manually
+            if (procedureCodeInput.value && !selectedProcedure) {
+                procedureCodeInput.value = '';
+            }
+            
+            const query = diagnosisInput.value.trim();
+            
+            if (query.length < 2) {
+                hideAutocomplete();
+                clearDiagnosisBtn.style.display = query ? 'block' : 'none';
+                autocompleteStatus.textContent = 'Type at least 2 characters to search procedures';
+                autocompleteStatus.style.color = '#6b7280';
+                return;
+            }
+            
+            clearDiagnosisBtn.style.display = 'block';
+            
+            autocompleteTimeout = setTimeout(async () => {
+                const results = await searchProcedures(query);
+                displayAutocomplete(results, query);
+            }, 300);
+        });
+
+        // Keyboard navigation for autocomplete
+        let selectedIndex = -1;
+        
+        diagnosisInput.addEventListener('keydown', (e) => {
+            const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+            
+            if (items.length === 0) return;
+            
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelectedItem(items);
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelectedItem(items);
+                    break;
+                    
+                case 'Enter':
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && selectedIndex < items.length) {
+                        items[selectedIndex].click();
+                    }
+                    break;
+                    
+                case 'Escape':
+                    hideAutocomplete();
+                    selectedIndex = -1;
+                    break;
+            }
+        });
+
+        function updateSelectedItem(items) {
+            items.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.style.backgroundColor = '#4f46e5';
+                    item.style.color = 'white';
+                } else {
+                    item.style.backgroundColor = '';
+                    item.style.color = '';
+                }
+            });
+        }
+
+        // Close autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-container')) {
+                hideAutocomplete();
+                selectedIndex = -1;
+            }
+        });
+
+        // Clear button
+        clearDiagnosisBtn.addEventListener('click', clearProcedure);
+        
+        // Search icon click
+        searchDiagnosisBtn.addEventListener('click', async () => {
+            const query = diagnosisInput.value.trim();
+            if (query.length >= 2) {
+                const results = await searchProcedures(query);
+                displayAutocomplete(results, query);
+            } else {
+                diagnosisInput.focus();
+            }
+        });
+
         // Handle form submission
         document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -365,6 +707,7 @@
                 duration: document.getElementById('duration').value,
                 status: document.getElementById('status').value,
                 diagnosis: document.getElementById('diagnosis').value,
+                procedureCode: document.getElementById('procedureCode').value,
                 priority: document.getElementById('priority').value,
                 notes: document.getElementById('notes').value
             };
@@ -398,6 +741,7 @@
                     // Reset form after 3 seconds
                     setTimeout(() => {
                         document.getElementById('appointmentForm').reset();
+                        clearProcedure();
                         document.getElementById('startDateTime').value = formatDateTime(new Date(now.getTime() + 60 * 60 * 1000));
                         document.getElementById('endDateTime').value = formatDateTime(new Date(new Date().getTime() + 105 * 60 * 1000));
                     }, 3000);
@@ -437,33 +781,39 @@
                 endDateTime: formatDateTime(new Date(now.getTime() + 24 * 60 * 60 * 1000 + 45 * 60 * 1000)),
                 duration: '45',
                 status: 'scheduled',
-                diagnosis: 'Acute Appendicitis',
+                diagnosis: 'Appendectomy',
+                procedureCode: '',
                 priority: '2',
-                notes: 'RLQ pain, fever, nausea. Suspected acute appendicitis.'
+                notes: 'RLQ pain, fever, nausea. Suspected acute appendicitis. Patient scheduled for appendectomy.'
             };
 
             Object.keys(sampleData).forEach(key => {
                 const element = document.getElementById(key);
                 if (element) element.value = sampleData[key];
             });
+            
+            // Trigger search for appendectomy
+            setTimeout(async () => {
+                const results = await searchProcedures('appendectomy');
+                if (results.length > 0) {
+                    // Select the first result
+                    selectProcedure(results[0]);
+                }
+            }, 500);
         }
 
-        // Add sample data button (optional)
-        const sampleBtn = document.createElement('button');
-        sampleBtn.type = 'button';
-        sampleBtn.textContent = 'Fill Sample Data';
-        sampleBtn.style.cssText = `
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 10px;
-            font-size: 14px;
-        `;
-        sampleBtn.onclick = fillSampleData;
-        document.querySelector('.header').appendChild(sampleBtn);
+        // Clear all fields
+        function clearAllFields() {
+            document.getElementById('appointmentForm').reset();
+            clearProcedure();
+            document.getElementById('startDateTime').value = formatDateTime(new Date(now.getTime() + 60 * 60 * 1000));
+            document.getElementById('endDateTime').value = formatDateTime(new Date(new Date().getTime() + 105 * 60 * 1000));
+            document.getElementById('successResult').style.display = 'none';
+            document.getElementById('errorResult').style.display = 'none';
+        }
+
+        // Initialize
+        diagnosisInput.focus();
     </script>
 </body>
 </html>
