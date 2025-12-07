@@ -1,4 +1,3 @@
-markdown
 # 🏥 AMS Server (Anesthesia Management System)
 
 An Express.js + MongoDB + SQLite server for managing medical appointments and browsing WHO ICHI (International Classification of Health Interventions) codes.  
@@ -37,7 +36,7 @@ Place the generated .pem files in the project root.
 
 Run Server
 bash
-node server.js
+node server.js ```
 By default:
 
 HTTPS server runs on https://localhost:443
@@ -74,7 +73,7 @@ Create a new appointment.
 Converts EHR payload to FHIR, validates, and stores in MongoDB.
 
 Request Body Example:
-
+```bash
 json
 {
   "patientId": "P001",
@@ -89,7 +88,7 @@ json
   "priority": "2",
   "status": "scheduled",
   "notes": "RLQ pain, fever, nausea..."
-}
+}```
 List appointments
 Code
 GET /appointments
@@ -119,12 +118,4 @@ Titles in /ichi/search are cleaned of leading dashes/spaces.
 Run with sudo if binding to port 443, or change to 8443 for non-root use.
 
 📄 License
-MIT License. See LICENSE for details.
-
-Code
-
----
-
-This README gives you a professional GitHub front page: setup instructions, API docs, tech stack, and usage examples.  
-
-Would you like me to also generate a **Swagger/OpenAPI spec file** (`openapi.yaml`) so 
+MIT License. 
