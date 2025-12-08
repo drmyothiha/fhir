@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EHR to FHIR Appointment Booking</title>
+    <title>EHR to FHIR Appointment System</title>
     <style>
         * {
             margin: 0;
@@ -15,9 +15,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
 
@@ -26,7 +23,8 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
-            max-width: 800px;
+            max-width: 1200px;
+            margin: 0 auto;
             overflow: hidden;
         }
 
@@ -47,8 +45,59 @@
             font-size: 16px;
         }
 
-        .form-container {
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 20px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            background: #f1f5f9;
+            color: #4f46e5;
+        }
+
+        .tab-btn.active {
+            color: #4f46e5;
+            background: white;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #4f46e5;
+        }
+
+        .tab-content {
+            display: none;
             padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Book Appointment Tab Styles */
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         .form-row {
@@ -93,7 +142,7 @@
             font-family: inherit;
         }
 
-        .patient-info {
+        .section-info {
             background: #f0f9ff;
             padding: 20px;
             border-radius: 10px;
@@ -145,10 +194,193 @@
             box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
         }
 
-        .submit-btn:active {
-            transform: translateY(0);
+        /* Appointment List Tab Styles */
+        .appointments-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
         }
 
+        .appointments-header h2 {
+            color: #374151;
+            font-size: 24px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #4b5563;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .filter-btn.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .refresh-btn {
+            padding: 8px 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .refresh-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .appointments-table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .appointments-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .appointments-table th {
+            background: #f9fafb;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .appointments-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .appointments-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .appointments-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-booked {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-arrived {
+            background: #f0f9ff;
+            color: #0369a1;
+        }
+
+        .status-fulfilled {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .view-btn {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .edit-btn {
+            background: #10b981;
+            color: white;
+        }
+
+        .cancel-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .no-appointments {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            font-size: 18px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Common Styles */
         .result-container {
             margin-top: 30px;
             padding: 20px;
@@ -198,11 +430,6 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         /* Autocomplete Styles */
@@ -290,6 +517,13 @@
             padding: 0 15px;
         }
 
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
         .sample-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -306,21 +540,14 @@
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-1px);
         }
-
-        .header-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 15px;
-        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-hospital"></i> EHR to FHIR Appointment Booking</h1>
-            <p>Convert your EHR data to FHIR standard with ICHI Procedure Code autocomplete</p>
+            <h1><i class="fas fa-hospital"></i> EHR to FHIR Appointment System</h1>
+            <p>Book appointments and manage your schedule with FHIR standards</p>
             <div class="header-buttons">
                 <button class="sample-btn" onclick="fillSampleData()">
                     <i class="fas fa-flask"></i> Fill Sample Data
@@ -331,126 +558,243 @@
             </div>
         </div>
 
-        <div class="form-container">
-            <form id="appointmentForm">
-                <div class="patient-info">
-                    <h3><i class="fas fa-user"></i> Patient Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="patientId">Patient ID *</label>
-                            <input type="text" id="patientId" name="patientId" required placeholder="e.g., P001">
-                        </div>
-                        <div class="form-group">
-                            <label for="patientName">Patient Name *</label>
-                            <input type="text" id="patientName" name="patientName" required placeholder="e.g., မောင်သူရိန်လင်း">
-                        </div>
-                    </div>
-                </div>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('book')">
+                <i class="fas fa-calendar-plus"></i> Book Appointment
+            </button>
+            <button class="tab-btn" onclick="switchTab('list')">
+                <i class="fas fa-list"></i> Appointment List
+            </button>
+            <button class="tab-btn" onclick="switchTab('pending')">
+                <i class="fas fa-clock"></i> Pending Appointments
+            </button>
+        </div>
 
-                <div class="doctor-info">
-                    <h3><i class="fas fa-user-md"></i> Doctor Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="doctorId">Doctor ID *</label>
-                            <input type="text" id="doctorId" name="doctorId" required placeholder="e.g., DOC001">
-                        </div>
-                        <div class="form-group">
-                            <label for="doctorName">Doctor Name *</label>
-                            <input type="text" id="doctorName" name="doctorName" required placeholder="e.g., Dr. Aung Ko Win">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="appointment-info">
-                    <h3><i class="fas fa-calendar-alt"></i> Appointment Details</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="startDateTime">Start Date & Time *</label>
-                            <input type="datetime-local" id="startDateTime" name="startDateTime" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="endDateTime">End Date & Time *</label>
-                            <input type="datetime-local" id="endDateTime" name="endDateTime" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="duration">Duration (minutes)</label>
-                            <input type="number" id="duration" name="duration" placeholder="e.g., 45" min="15" max="240">
-                        </div>
-                        <div class="form-group">
-                            <label for="status">Status *</label>
-                            <select id="status" name="status" required>
-                                <option value="scheduled">Scheduled</option>
-                                <option value="confirmed">Confirmed</option>
-                                <option value="arrived">Arrived</option>
-                                <option value="completed">Completed</option>
-                                <option value="cancelled">Cancelled</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="medical-info">
-                    <h3><i class="fas fa-stethoscope"></i> Medical Information</h3>
-                    <div class="form-row">
-                        <div class="form-group autocomplete-container">
-                            <label for="diagnosis">Procedure / Diagnosis</label>
-                            <div class="autocomplete-wrapper">
-                                <input type="text" 
-                                       id="diagnosis" 
-                                       name="diagnosis" 
-                                       placeholder="Start typing procedure name (e.g., Appendectomy)..."
-                                       autocomplete="off">
-                                <i class="fas fa-times clear-icon" id="clearDiagnosis"></i>
-                                <i class="fas fa-search search-icon" id="searchDiagnosis"></i>
+        <!-- Tab 1: Book Appointment -->
+        <div id="book-tab" class="tab-content active">
+            <div class="form-container">
+                <form id="appointmentForm">
+                    <div class="section-info">
+                        <h3><i class="fas fa-user"></i> Patient Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="patientId">Patient ID *</label>
+                                <input type="text" id="patientId" name="patientId" required placeholder="e.g., P001">
                             </div>
-                            <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
-                            <div class="autocomplete-status" id="autocompleteStatus"></div>
-                            <input type="hidden" id="procedureCode" name="procedureCode">
+                            <div class="form-group">
+                                <label for="patientName">Patient Name *</label>
+                                <input type="text" id="patientName" name="patientName" required placeholder="e.g., မောင်သူရိန်လင်း">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="doctor-info">
+                        <h3><i class="fas fa-user-md"></i> Doctor Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="doctorId">Doctor ID *</label>
+                                <input type="text" id="doctorId" name="doctorId" required placeholder="e.g., DOC001">
+                            </div>
+                            <div class="form-group">
+                                <label for="doctorName">Doctor Name *</label>
+                                <input type="text" id="doctorName" name="doctorName" required placeholder="e.g., Dr. Aung Ko Win">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="appointment-info">
+                        <h3><i class="fas fa-calendar-alt"></i> Appointment Details</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="startDateTime">Start Date & Time *</label>
+                                <input type="datetime-local" id="startDateTime" name="startDateTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="endDateTime">End Date & Time *</label>
+                                <input type="datetime-local" id="endDateTime" name="endDateTime" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="duration">Duration (minutes)</label>
+                                <input type="number" id="duration" name="duration" placeholder="e.g., 45" min="15" max="240">
+                            </div>
+                            <div class="form-group">
+                                <label for="status">Status *</label>
+                                <select id="status" name="status" required>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="arrived">Arrived</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="medical-info">
+                        <h3><i class="fas fa-stethoscope"></i> Medical Information</h3>
+                        <div class="form-row">
+                            <div class="form-group autocomplete-container">
+                                <label for="diagnosis">Procedure / Diagnosis</label>
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" 
+                                           id="diagnosis" 
+                                           name="diagnosis" 
+                                           placeholder="Start typing procedure name (e.g., Appendectomy)..."
+                                           autocomplete="off">
+                                    <i class="fas fa-times clear-icon" id="clearDiagnosis"></i>
+                                    <i class="fas fa-search search-icon" id="searchDiagnosis"></i>
+                                </div>
+                                <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+                                <div class="autocomplete-status" id="autocompleteStatus"></div>
+                                <input type="hidden" id="procedureCode" name="procedureCode">
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority" name="priority">
+                                    <option value="0">Routine (0)</option>
+                                    <option value="1">Urgent (1)</option>
+                                    <option value="2">ASAP (2)</option>
+                                    <option value="3">STAT (3)</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="priority">Priority</label>
-                            <select id="priority" name="priority">
-                                <option value="0">Routine (0)</option>
-                                <option value="1">Urgent (1)</option>
-                                <option value="2">ASAP (2)</option>
-                                <option value="3">STAT (3)</option>
-                            </select>
+                            <label for="notes">Clinical Notes</label>
+                            <textarea id="notes" name="notes" placeholder="Enter clinical notes, symptoms, observations..."></textarea>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="notes">Clinical Notes</label>
-                        <textarea id="notes" name="notes" placeholder="Enter clinical notes, symptoms, observations..."></textarea>
-                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-paper-plane"></i> Book Appointment
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Converting EHR to FHIR and booking appointment...</p>
                 </div>
 
-                <button type="submit" class="submit-btn">
-                    <i class="fas fa-paper-plane"></i> Book Appointment
+                <div class="result-container success" id="successResult">
+                    <h3><i class="fas fa-check-circle"></i> Appointment Booked Successfully!</h3>
+                    <p id="successMessage"></p>
+                    <h4>FHIR Resource:</h4>
+                    <pre id="fhirOutput"></pre>
+                </div>
+
+                <div class="result-container error" id="errorResult">
+                    <h3><i class="fas fa-exclamation-circle"></i> Booking Failed</h3>
+                    <p id="errorMessage"></p>
+                    <pre id="errorDetails"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Appointment List -->
+        <div id="list-tab" class="tab-content">
+            <div class="appointments-header">
+                <h2><i class="fas fa-calendar-alt"></i> All Appointments</h2>
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filterAppointments('all')">All</button>
+                    <button class="filter-btn" onclick="filterAppointments('today')">Today</button>
+                    <button class="filter-btn" onclick="filterAppointments('upcoming')">Upcoming</button>
+                    <button class="filter-btn" onclick="filterAppointments('past')">Past</button>
+                    <button class="refresh-btn" onclick="loadAppointments()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="appointments-table-container">
+                <table class="appointments-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Procedure</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointmentsList">
+                        <!-- Appointments will be loaded here -->
+                        <tr>
+                            <td colspan="6" class="no-appointments">
+                                <div class="loading-spinner"></div>
+                                Loading appointments...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 3: Pending Appointments -->
+        <div id="pending-tab" class="tab-content">
+            <div class="appointments-header">
+                <h2><i class="fas fa-clock"></i> Pending Appointments</h2>
+                <button class="refresh-btn" onclick="loadPendingAppointments()">
+                    <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-            </form>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Converting EHR to FHIR and booking appointment...</p>
             </div>
 
-            <div class="result-container success" id="successResult">
-                <h3><i class="fas fa-check-circle"></i> Appointment Booked Successfully!</h3>
-                <p id="successMessage"></p>
-                <h4>FHIR Resource:</h4>
-                <pre id="fhirOutput"></pre>
-            </div>
-
-            <div class="result-container error" id="errorResult">
-                <h3><i class="fas fa-exclamation-circle"></i> Booking Failed</h3>
-                <p id="errorMessage"></p>
-                <pre id="errorDetails"></pre>
+            <div class="appointments-table-container">
+                <table class="appointments-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Procedure</th>
+                            <th>Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingAppointmentsList">
+                        <!-- Pending appointments will be loaded here -->
+                        <tr>
+                            <td colspan="6" class="no-appointments">
+                                <div class="loading-spinner"></div>
+                                Loading pending appointments...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked tab button
+            event.target.classList.add('active');
+            
+            // Load data if needed
+            if (tabName === 'list') {
+                loadAppointments();
+            } else if (tabName === 'pending') {
+                loadPendingAppointments();
+            }
+        }
+
         // Set default datetime to now and 30 minutes later
         const now = new Date();
         const start = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
@@ -499,7 +843,7 @@
                 autocompleteStatus.textContent = 'Searching...';
                 autocompleteStatus.style.color = '#6b7280';
                 
-                const response = await fetch(`/ichi/search?q=${encodeURIComponent(query)}&limit=10`);
+                const response = await fetch(`/ichi/search?q=${encodeURIComponent(query)}&limit=100`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -687,6 +1031,219 @@
             }
         });
 
+        // Load all appointments
+        async function loadAppointments() {
+            const tableBody = document.getElementById('appointmentsList');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="no-appointments">
+                        <div class="loading-spinner"></div>
+                        Loading appointments...
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch('/appointments');
+                const data = await response.json();
+                
+                if (data.appointments && data.appointments.length > 0) {
+                    renderAppointments(data.appointments, 'appointmentsList');
+                } else {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="no-appointments">
+                                <i class="fas fa-calendar-times" style="font-size: 48px; color: #9ca3af; margin-bottom: 10px;"></i><br>
+                                No appointments found.
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading appointments:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="no-appointments">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 10px;"></i><br>
+                            Failed to load appointments. Please try again.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Load pending appointments
+        async function loadPendingAppointments() {
+            const tableBody = document.getElementById('pendingAppointmentsList');
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="no-appointments">
+                        <div class="loading-spinner"></div>
+                        Loading pending appointments...
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch('/appointments/pending');
+                const data = await response.json();
+                
+                if (data.appointments && data.appointments.length > 0) {
+                    renderAppointments(data.appointments, 'pendingAppointmentsList', true);
+                } else {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="no-appointments">
+                                <i class="fas fa-clock" style="font-size: 48px; color: #9ca3af; margin-bottom: 10px;"></i><br>
+                                No pending appointments.
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading pending appointments:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="no-appointments">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ef4444; margin-bottom: 10px;"></i><br>
+                            Failed to load pending appointments. Please try again.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Render appointments to table
+        function renderAppointments(appointments, tableId, isPending = false) {
+            const tableBody = document.getElementById(tableId);
+            tableBody.innerHTML = '';
+
+            appointments.forEach(appointment => {
+                const startDate = new Date(appointment.start);
+                const endDate = new Date(appointment.end);
+                
+                const row = document.createElement('tr');
+                
+                // Get patient and doctor names
+                const patientName = appointment.patientName || getParticipantName(appointment.participants, 'Patient');
+                const doctorName = appointment.doctorName || getParticipantName(appointment.participants, 'Practitioner');
+                
+                // Get status badge
+                const statusBadge = getStatusBadge(appointment.status);
+                
+                // Format date and time
+                const dateStr = startDate.toLocaleDateString();
+                const timeStr = `${startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                
+                row.innerHTML = `
+                    <td>
+                        <strong>${dateStr}</strong><br>
+                        <small>${timeStr}</small>
+                    </td>
+                    <td>${patientName || 'N/A'}</td>
+                    <td>${doctorName || 'N/A'}</td>
+                    <td>${appointment.diagnosis || 'N/A'}</td>
+                    <td>${isPending ? getPriorityBadge(appointment.priority) : statusBadge}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn view-btn" onclick="viewAppointment('${appointment._id}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            ${!isPending ? `
+                                <button class="action-btn edit-btn" onclick="editAppointment('${appointment._id}')">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            ` : `
+                                <button class="action-btn edit-btn" onclick="processAppointment('${appointment._id}')">
+                                    <i class="fas fa-check"></i> Process
+                                </button>
+                            `}
+                            <button class="action-btn cancel-btn" onclick="cancelAppointment('${appointment._id}')">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Helper function to get participant name
+        function getParticipantName(participants, role) {
+            if (!participants) return null;
+            const participant = participants.find(p => 
+                p.actor && p.actor.reference && p.actor.reference.includes(role)
+            );
+            return participant ? participant.actor.display : null;
+        }
+
+        // Helper function to get status badge
+        function getStatusBadge(status) {
+            const statusMap = {
+                'pending': {class: 'status-pending', text: 'Pending'},
+                'booked': {class: 'status-booked', text: 'Booked'},
+                'arrived': {class: 'status-arrived', text: 'Arrived'},
+                'fulfilled': {class: 'status-fulfilled', text: 'Completed'},
+                'cancelled': {class: 'status-cancelled', text: 'Cancelled'},
+                'noshow': {class: 'status-cancelled', text: 'No Show'}
+            };
+            
+            const badge = statusMap[status] || {class: 'status-pending', text: status || 'Unknown'};
+            return `<span class="status-badge ${badge.class}">${badge.text}</span>`;
+        }
+
+        // Helper function to get priority badge
+        function getPriorityBadge(priority) {
+            const priorityMap = {
+                '0': {class: 'status-fulfilled', text: 'Routine'},
+                '1': {class: 'status-arrived', text: 'Urgent'},
+                '2': {class: 'status-pending', text: 'ASAP'},
+                '3': {class: 'status-cancelled', text: 'STAT'}
+            };
+            
+            const badge = priorityMap[priority] || {class: 'status-pending', text: 'Unknown'};
+            return `<span class="status-badge ${badge.class}">${badge.text}</span>`;
+        }
+
+        // Appointment actions
+        function viewAppointment(id) {
+            alert(`View appointment ${id}`);
+            // You can implement a detailed view modal here
+        }
+
+        function editAppointment(id) {
+            alert(`Edit appointment ${id}`);
+            // Switch to booking tab and load data for editing
+            switchTab('book');
+        }
+
+        function processAppointment(id) {
+            alert(`Process appointment ${id}`);
+            // Implement appointment processing logic
+        }
+
+        function cancelAppointment(id) {
+            if (confirm('Are you sure you want to cancel this appointment?')) {
+                alert(`Cancel appointment ${id}`);
+                // Implement cancellation logic
+            }
+        }
+
+        // Filter appointments
+        function filterAppointments(filter) {
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Implement filtering logic
+            // This would require server-side filtering or client-side filtering
+            // For now, just reload all appointments
+            loadAppointments();
+        }
+
         // Handle form submission
         document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -744,6 +1301,10 @@
                         clearProcedure();
                         document.getElementById('startDateTime').value = formatDateTime(new Date(now.getTime() + 60 * 60 * 1000));
                         document.getElementById('endDateTime').value = formatDateTime(new Date(new Date().getTime() + 105 * 60 * 1000));
+                        
+                        // Reload appointment lists
+                        loadAppointments();
+                        loadPendingAppointments();
                     }, 3000);
                 } else {
                     // Show error
@@ -812,8 +1373,11 @@
             document.getElementById('errorResult').style.display = 'none';
         }
 
-        // Initialize
-        diagnosisInput.focus();
+        // Initialize - load appointments on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAppointments();
+            loadPendingAppointments();
+        });
     </script>
 </body>
 </html>

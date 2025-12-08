@@ -1,18 +1,31 @@
-// server.js - Updated AMS server with web form support
+// server.js - Refactored AMS server with HTTPS and proper ICHI/FHIR mapping
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const { Fhir } = require('fhir');
 const path = require('path');
+const fs = require('fs');
+const https = require('https');
 
 const app = express();
 const fhir = new Fhir();
-// AHCI
+
+// ========== SQLite (ICHI) ==========
 const sqlite3 = require('sqlite3').verbose();
+// Use your actual table name. If you've kept the slimmed table name as "ICHI", leave as-is.
+// Otherwise set to "LinearizationMiniOutput_ICHI_e".
+const ICHI_TABLE = 'ICHI';
 const AHCI_DB_PATH = path.join(__dirname, 'ichi.db');
 
-// ========== Define Mongoose Schema FIRST ==========
-// Define Appointment schema
+// ========== HTTPS Configuration with mkcert ==========
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, 'localhost+2-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'localhost+2.pem')),
+  requestCert: false,
+  rejectUnauthorized: false // dev only
+};
+
+// ========== Mongoose Schema and Model ==========
 const appointmentSchema = new mongoose.Schema({
   resourceType: String,
   status: String,
@@ -22,11 +35,20 @@ const appointmentSchema = new mongoose.Schema({
   patientName: String,
   doctorName: String,
   diagnosis: String,
+  procedureCode: String,     // <-- added
   raw: Object
 });
 
-// Create Appointment model AFTER schema is defined
 const Appointment = mongoose.model('Appointment', appointmentSchema);
+
+const cors = require('cors');
+
+app.use(cors({
+  origin: 'http://localhost:3000', // React app URL
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Connect to MongoDB
 mongoose.connect('mongodb://localhost:27017/ams')
@@ -38,14 +60,14 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Add request logging middleware
+// Simple request logging
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  const protocol = req.secure ? 'HTTPS' : 'HTTP';
+  console.log(`${new Date().toISOString()} - ${protocol} ${req.method} ${req.url}`);
   next();
 });
 
 // ========== SQLite Database ==========
-// Open SQLite connection (shared)
 const ichiDb = new sqlite3.Database(AHCI_DB_PATH, sqlite3.OPEN_READONLY, (err) => {
   if (err) {
     console.error('Failed to open ichi.db:', err.message);
@@ -54,7 +76,7 @@ const ichiDb = new sqlite3.Database(AHCI_DB_PATH, sqlite3.OPEN_READONLY, (err) =
   }
 });
 
-// Utility: run a query that returns rows as a Promise
+// Promise wrappers
 function dbAll(db, sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -63,7 +85,6 @@ function dbAll(db, sql, params = []) {
     });
   });
 }
-
 function dbGet(db, sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -74,32 +95,28 @@ function dbGet(db, sql, params = []) {
 }
 
 // ========== ICHI ROUTES ==========
-// IMPORTANT: Define specific routes BEFORE parameterized routes
+// Define specific routes BEFORE parameterized routes
 
 // Search route FIRST
 app.get('/ichi/search', async (req, res) => {
   try {
-    console.log('Search endpoint called with query:', req.query); // Debug log
-    
     const q = (req.query.q || '').trim();
-    console.log('Search term:', q); // Debug log
-    
     if (!q) return res.status(400).json({ error: 'Missing query parameter q' });
 
-    // Use parameterized LIKE search; add wildcards
+    // Escape wildcards
     const term = `%${q.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
-    console.log('Processed term:', term); // Debug log
-    
     const limit = Math.min(parseInt(req.query.limit || '100', 10), 1000);
 
-    const sql = `SELECT Code, Title FROM ICHI
-                 WHERE Title LIKE ? ESCAPE '\\'
-                 ORDER BY Code
-                 LIMIT ?`;
-    console.log('SQL query:', sql); // Debug log
-    
+    // Only return cleaned Title and Code; optionally filter by DepthInKind=1
+    const sql = `
+      SELECT LTRIM(REPLACE(Title, '-', ''), ' ') AS Title, Code
+FROM ${ICHI_TABLE}
+WHERE DepthInKind = '1' AND Title LIKE ? ESCAPE '\\'
+ORDER BY Code
+LIMIT ?
+    `;
+
     const rows = await dbAll(ichiDb, sql, [term, limit]);
-    console.log('Found rows:', rows.length); // Debug log
 
     res.json({
       query: q,
@@ -107,7 +124,6 @@ app.get('/ichi/search', async (req, res) => {
       results: rows
     });
   } catch (err) {
-    console.error('Error /ichi/search', err);
     res.status(500).json({ error: 'Search failed', details: err.message });
   }
 });
@@ -115,15 +131,20 @@ app.get('/ichi/search', async (req, res) => {
 // Single code route SECOND
 app.get('/ichi/:code', async (req, res) => {
   try {
-    const code = req.params.code;
-    const sql = `SELECT Code, Title FROM ICHI WHERE Code = ? LIMIT 1`;
+    const code = (req.params.code || '').trim();
+    if (!code) return res.status(400).json({ error: 'Missing code parameter' });
+
+    const sql = `
+      SELECT Code, BlockId, Title, ClassKind, DepthInKind
+      FROM ${ICHI_TABLE}
+      WHERE Code = ? LIMIT 1
+    `;
     const row = await dbGet(ichiDb, sql, [code]);
 
     if (!row) return res.status(404).json({ error: 'Code not found' });
     res.json(row);
   } catch (err) {
-    console.error('Error /ichi/:code', err);
-    res.status(500).json({ error: 'Failed to fetch code' });
+    res.status(500).json({ error: 'Failed to fetch code', details: err.message });
   }
 });
 
@@ -132,11 +153,13 @@ app.get('/ichi', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit || '100', 10), 1000);
     const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
-    const sort = (req.query.sort === 'Title') ? 'Title' : 'Code';
+    const sortColumn = (req.query.sort === 'Title') ? 'Title' : 'Code'; // whitelist
 
-    // Ensure only Code and Title are returned
-    const sql = `SELECT Code, Title FROM ICHI
-                 ORDER BY ${sort} LIMIT ? OFFSET ?`;
+    const sql = `
+      SELECT Code, BlockId, Title, ClassKind, DepthInKind
+      FROM ${ICHI_TABLE}
+      ORDER BY ${sortColumn} LIMIT ? OFFSET ?
+    `;
     const rows = await dbAll(ichiDb, sql, [limit, offset]);
 
     res.json({
@@ -146,8 +169,7 @@ app.get('/ichi', async (req, res) => {
       results: rows
     });
   } catch (err) {
-    console.error('Error /ichi:', err);
-    res.status(500).json({ error: 'Failed to query AHCI database' });
+    res.status(500).json({ error: 'Failed to query ICHI database', details: err.message });
   }
 });
 
@@ -157,32 +179,27 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Helper function to convert EHR data to FHIR
+// Helper: Convert EHR data to FHIR Appointment
 function convertEHRtoFHIR(ehrData) {
-  // Map EHR status to FHIR status
   const statusMap = {
-    'scheduled': 'booked',
-    'confirmed': 'booked',
-    'arrived': 'arrived',
-    'completed': 'fulfilled',
-    'cancelled': 'cancelled',
-    'noshow': 'noshow',
-    'pending': 'pending'
+    scheduled: 'booked',
+    confirmed: 'booked',
+    arrived: 'arrived',
+    completed: 'fulfilled',
+    cancelled: 'cancelled',
+    noshow: 'noshow',
+    pending: 'pending'
   };
-
   const fhirStatus = statusMap[ehrData.status] || 'booked';
-  
-  // Create FHIR Appointment
+
   const appointment = {
     resourceType: 'Appointment',
-    id: `appt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `appt-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
     status: fhirStatus,
-    serviceType: [{
-      text: 'Medical Consultation'
-    }],
+    serviceType: [{ text: 'Medical Consultation' }],
     start: new Date(ehrData.startDateTime).toISOString(),
     end: new Date(ehrData.endDateTime).toISOString(),
-    minutesDuration: parseInt(ehrData.duration) || 30,
+    minutesDuration: parseInt(ehrData.duration, 10) || 30,
     created: new Date().toISOString(),
     comment: ehrData.notes || '',
     participant: [
@@ -205,27 +222,33 @@ function convertEHRtoFHIR(ehrData) {
     ]
   };
 
-  // Add diagnosis if provided
-  if (ehrData.diagnosis) {
-    appointment.reasonCode = [{
-      text: ehrData.diagnosis
-    }];
+  // reasonCode: diagnosis + ICHI procedure code if present
+  if (ehrData.diagnosis || ehrData.procedureCode) {
+    const reason = {
+      text: ehrData.diagnosis || ''
+    };
+    if (ehrData.procedureCode) {
+      reason.coding = [{
+        system: 'https://icd.who.int/devct11/ichi/en/current',
+        code: ehrData.procedureCode,
+        display: ehrData.diagnosis || ''
+      }];
+    }
+    appointment.reasonCode = [reason];
   }
 
-  // Add priority if provided
   if (ehrData.priority) {
-    appointment.priority = parseInt(ehrData.priority);
+    appointment.priority = parseInt(ehrData.priority, 10);
   }
 
   return appointment;
 }
 
-// New endpoint for web form submission
+// Book appointment
 app.post('/book-appointment', async (req, res) => {
   try {
     console.log('Received EHR data:', req.body);
 
-    // Convert EHR data to FHIR
     const fhirAppointment = convertEHRtoFHIR(req.body);
     console.log('Converted FHIR:', JSON.stringify(fhirAppointment, null, 2));
 
@@ -243,7 +266,7 @@ app.post('/book-appointment', async (req, res) => {
       });
     }
 
-    // Save to MongoDB
+    // Persist to MongoDB (store procedureCode explicitly)
     const newAppointment = new Appointment({
       resourceType: fhirAppointment.resourceType,
       status: fhirAppointment.status,
@@ -253,6 +276,7 @@ app.post('/book-appointment', async (req, res) => {
       patientName: req.body.patientName,
       doctorName: req.body.doctorName,
       diagnosis: req.body.diagnosis,
+      procedureCode: req.body.procedureCode || null, // <-- added
       raw: fhirAppointment
     });
 
@@ -277,13 +301,34 @@ app.post('/book-appointment', async (req, res) => {
   }
 });
 
-// Endpoint for AMS clients to sync appointments
+// Get all pending appointments
+app.get('/appointments/pending', async (req, res) => {
+  try {
+    // Filter appointments by 'pending' status
+    const pendingAppointments = await Appointment.find({ 
+      status: 'pending' 
+    }).sort({ start: 1 }); // Sort by start time, ascending (earliest first)
+
+    res.json({
+      count: pendingAppointments.length,
+      appointments: pendingAppointments
+    });
+  } catch (error) {
+    console.error('Error fetching pending appointments:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch pending appointments',
+      details: error.message 
+    });
+  }
+});
+
+// List appointments
 app.get('/appointments', async (req, res) => {
   try {
     const appointments = await Appointment.find().sort({ start: -1 });
     res.json({
       count: appointments.length,
-      appointments: appointments
+      appointments
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch appointments' });
@@ -303,7 +348,7 @@ app.get('/appointments/:id', async (req, res) => {
   }
 });
 
-// Optional: close DB on process exit
+// Graceful shutdown: close SQLite on SIGINT
 process.on('SIGINT', () => {
   ichiDb.close((err) => {
     if (err) console.error('Error closing ichi.db:', err.message);
@@ -312,12 +357,29 @@ process.on('SIGINT', () => {
   });
 });
 
-const PORT = 4000;
-app.listen(PORT, () => {
-  console.log(`AMS Server running on http://localhost:${PORT}`);
-  console.log(`Web form available at http://localhost:${PORT}`);
-  console.log(`ICHI endpoints available at:`);
-  console.log(`  http://localhost:${PORT}/ichi`);
-  console.log(`  http://localhost:${PORT}/ichi/search?q=appendicitis`);
-  console.log(`  http://localhost:${PORT}/ichi/AA01`);
+// ========== HTTPS Servers ==========
+const HTTPS_PORT = 443;
+const HTTP_PORT = 80;
+
+const httpsServer = https.createServer(sslOptions, app);
+
+const http = require('http');
+const httpApp = express();
+httpApp.use((req, res) => {
+  res.redirect(`https://${req.headers.host}${req.url}`);
+});
+
+http.createServer(httpApp).listen(HTTP_PORT, () => {
+  console.log(`HTTP redirect server running on port ${HTTP_PORT}`);
+});
+
+httpsServer.listen(HTTPS_PORT, () => {
+  console.log(`✅ AMS HTTPS Server running on https://localhost:${HTTPS_PORT}`);
+  console.log(`✅ Web form available at https://localhost:${HTTPS_PORT}`);
+  console.log(`✅ ICHI endpoints available at:`);
+  console.log(`   https://localhost:${HTTPS_PORT}/ichi`);
+  console.log(`   https://localhost:${HTTPS_PORT}/ichi/search?q=appendix`);
+  console.log(`   https://localhost:${HTTPS_PORT}/ichi/IAA.BA.BC`);
+  console.log(`\n⚠️  IMPORTANT: If using port 443, you may need to run with sudo`);
+  console.log(`   Alternatively, use a different port like 8443`);
 });
